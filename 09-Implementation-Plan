@@ -1,365 +1,219 @@
 # Enterprise MSP Stack Architecture
-# Implementation Plan
+## Implementation Plan
 
-Version: 1.0
-Author: Musavir Ali Turi
-Project: Enterprise MSP Stack Architecture
-Date: June 2026
-
----
-
-# 1. Executive Summary
-
-This document defines the implementation strategy for the Enterprise MSP Stack Architecture project.
-
-The objective is to deploy a modern MSP operational environment following enterprise architecture principles while minimizing risk and maintaining deployment consistency.
-
-The implementation will be executed in phased stages, allowing validation and rollback at each milestone.
+**Version:** 1.0  
+**Author:** Musavir Ali Turi  
+**Project:** Enterprise MSP Stack Architecture  
+**Date:** June 2026  
 
 ---
 
-# 2. Project Scope
+## 1. Executive Summary
+This document defines the implementation strategy for the Enterprise MSP Stack Architecture project. 
 
-## Included
-
-- Proxmox Virtualization Platform
-- Active Directory Services
-- DNS Services
-- DHCP Services
-- Certificate Services
-- Documentation Platform
-- Monitoring Platform
-- Security Platform
-- Automation Platform
-- Backup Platform
-
-## Excluded
-
-- Production customer workloads
-- Public-facing services
-- High Availability Clustering
-- Multi-site replication
+The objective is to deploy a modern MSP operational environment following enterprise architecture principles while minimizing risk and maintaining deployment consistency. The implementation will be executed in phased stages, allowing validation and rollback at each milestone.
 
 ---
 
-# 3. Deployment Strategy
+## 2. Project Scope
 
-Implementation follows a phased deployment approach.
-
-Each phase must:
-
-- Complete successfully
-- Pass validation testing
-- Be documented
-- Be backed up
-
-Before proceeding to the next phase.
+| Included Components | Excluded Components |
+| :--- | :--- |
+| • Proxmox Virtualization Platform<br>• Active Directory Services<br>• DNS & DHCP Services<br>• Certificate Services (ADCS)<br>• Documentation Platform (BookStack)<br>• NetBox (Source of Truth)<br>• Monitoring Platform (Zabbix/Grafana)<br>• Security Platform (Wazuh SIEM)<br>• Automation Platform (Ansible/PowerShell)<br>• Backup Platform (Restic) | • Production customer workloads<br>• Public-facing services<br>• High Availability (HA) Clustering<br>• Multi-site replication |
 
 ---
 
-# 4. Deployment Order
-
-## Phase 1
-
-Infrastructure Foundation
-
-Components:
-
-- Proxmox VE
-- Storage Configuration
-- Network Configuration
-- VLAN Configuration
-
-Success Criteria:
-
-- Hypervisor operational
-- Storage available
-- VLANs functioning
+## 3. Deployment Strategy
+Implementation follows a strict phased deployment approach. To ensure infrastructure integrity, each phase must achieve the following before proceeding to the subsequent phase:
+* Complete successfully with zero critical errors.
+* Pass all defined validation testing.
+* Be fully documented within the central knowledge base.
+* Have an immutable base backup/snapshot executed.
 
 ---
 
-## Phase 2
+## 4. Phased Deployment Plan
 
-Identity Platform
+### Phase 1: Infrastructure Foundation
+* **Host:** Proxmox VE physical nodes
 
-Components:
+| Components | Success Criteria |
+| :--- | :--- |
+| • Proxmox VE Installation<br>• Storage Pool Configuration (`local`, `local-lvm`, `backup-storage`)<br>• Network Bridge & VLAN Configuration (`vmbr0` - `vmbr60`) | • Hypervisor fully operational & reachable<br>• Local/Network storage targets available<br>• VLAN tagging and isolation functioning as intended |
 
-- Windows Server
-- Active Directory
-- DNS
-- DHCP
-- ADCS
+### Phase 2: Identity Platform
+* **Host / VM Name:** DC01  
+* **OS:** Windows Server 2025  
+* **Domain:** `empire.local`
 
-Success Criteria:
+| Component Type | Role / Service | Configurations & Tasks | Success Criteria |
+| :--- | :--- | :--- | :--- |
+| **Core OS** | Base System | Install Windows Server 2025, assign static IP, rename host to `DC01` | VM is baseline-hardened |
+| **Directory** | AD DS | Create Active Directory forest: `empire.local` | Domain is operational |
+| **Network** | DNS / DHCP | Setup AD-integrated DNS & localized DHCP scopes | Dynamic IP & name resolution functional |
+| **PKI** | ADCS | Deploy Active Directory Certificate Services | Internal certificates issuing correctly |
+| **Hardening** | Identity | Structure OUs, setup Service Accounts, Security Groups, apply GPO baseline | Access control policies enforced |
 
-- Domain operational
-- DNS resolution functioning
-- DHCP functioning
-- Certificates issuing correctly
+### Phase 3: Operations Platform
+* **Host / VM Name:** OPS01  
+* **OS:** Ubuntu 24.04 LTS  
+* **Role:** Central MSP Operations Hub
 
----
+| Component Type | Tool Stack | Primary Function | Success Criteria |
+| :--- | :--- | :--- | :--- |
+| **Runtime** | Docker & Docker Compose | Container infrastructure host | Container engine fully functional |
+| **Code / Automation** | Git & Ansible | Infrastructure as Code & version control | Automation server functional |
+| **Ingress** | Nginx Proxy Manager | Reverse proxy & localized SSL offloading | External/Internal routing operational |
+| **Documentation** | BookStack | Knowledge base & Runbook portal | Central wiki reachable & operational |
+| **Source of Truth** | NetBox | IPAM & DCIM network tracking | Infrastructure database live |
 
-## Phase 3
+### Phase 4: Monitoring Platform
+* **Host / VM Name:** MON01  
+* **OS / Engine:** Ubuntu Server with Docker & Docker Compose  
+* **Architectural Principle:** Observe $\rightarrow$ Then Protect (Monitoring must precede security deployment)
 
-Operations Platform
+| Tool Stack | Primary Function | Success Criteria |
+| :--- | :--- | :--- |
+| **Zabbix** | Infrastructure & Endpoint monitoring metrics | Core infrastructure hosts are monitored |
+| **Grafana** | Unified performance dashboards & data visualization | Operations dashboards are populated & live |
+| **Uptime Kuma** | Service availability & synthetic HTTP uptime alerts | Slack/Email alerts generate successfully on failure |
 
-Components:
+### Phase 5: Security Platform
+* **Host / VM Name:** SEC01  
+* **SIEM Core:** Wazuh Open-Source SIEM
 
-- Ubuntu Server
-- Docker
-- Docker Compose
-- Git
-- Ansible
-- BookStack
-- NetBox
+| Component Stack | Scope / Targets | Success Criteria |
+| :--- | :--- | :--- |
+| • Wazuh Indexer<br>• Wazuh Manager<br>• Wazuh Dashboard | **Target Endpoint Deployments:**<br>• `DC01` (Windows Agent)<br>• `OPS01` (Linux Agent)<br>• `MON01` (Linux Agent)<br>• `BAK01` (Linux Agent) | • All endpoints successfully reporting to SEC01<br>• Security events collected natively<br>• Real-time alerts and logs generated |
 
-Success Criteria:
+### Phase 6: Backup Platform
+* **Host / VM Name:** BAK01  
 
-- Documentation accessible
-- Source of truth operational
-- Automation server functional
+| Tool Stack | Target Repository | Targets to Protect | Success Criteria |
+| :--- | :--- | :--- | :--- |
+| **Restic** | Local & Networked NFS Storage Target | • `DC01` (Active Directory)<br>• `OPS01` (Operations & Data)<br>• `MON01` (Monitoring)<br>• `SEC01` (Security SIEM) | • Baseline backup operations complete successfully<br>• Recovery & data integrity validation verified |
 
----
+### Phase 7: Automation Platform
+* **Engine Type:** Infrastructure as Code & Scheduled Scripts
 
-## Phase 4
-
-Monitoring Platform
-
-Components:
-
-- Zabbix
-- Grafana
-- Uptime Kuma
-
-Success Criteria:
-
-- Hosts monitored
-- Dashboards operational
-- Alerts generated successfully
-
----
-
-## Phase 5
-
-Security Platform
-
-Components:
-
-- Wazuh Manager
-- Wazuh Dashboard
-- Wazuh Agents
-
-Success Criteria:
-
-- Agents reporting
-- Events collected
-- Security alerts generated
+| Framework | Implementation Focus | Success Criteria |
+| :--- | :--- | :--- |
+| **Ansible** | Linux server configuration drift & routine patching deployments | Playbooks successfully maintain state across Linux hosts |
+| **PowerShell** | Windows Server automation, AD user creation, & daily health checkups | Idempotent scripts complete cleanly without human drift |
 
 ---
 
-## Phase 6
+## 5. Rollback Plan
 
-Backup Platform
-
-Components:
-
-- Restic
-- Backup Repository
-
-Success Criteria:
-
-- Backups completed
-- Recovery testing successful
+| Platform Segment | Rollback Method | Target Recovery Time (RTO) |
+| :--- | :--- | :--- |
+| **Hypervisor / Infra** | Restore Proxmox node configurations; revert upstream hardware/VLAN modifications. | Minimal |
+| **Active Directory** | Revert to stable Proxmox VM Snapshot; perform system state restore if replicating. | Critical / Fast |
+| **Linux Servers** | Revert VM Snapshot; redeploy cleanly via baseline server templates if corrupted. | Minimal |
+| **Docker Services** | Restore target Docker data volumes; rerun application deployment via Docker Compose files. | Minimal |
 
 ---
 
-## Phase 7
+## 6. Risk Register
 
-Automation Platform
-
-Components:
-
-- Ansible
-- PowerShell
-
-Success Criteria:
-
-- Automated deployments working
-- Automated configuration tasks working
+| ID | Identified Risk | Impact | Likelihood | Mitigation Strategy |
+| :---: | :--- | :---: | :---: | :--- |
+| **R1** | Core DNS / Name Resolution Failure | High | Medium | Implement secondary/fallback DNS configuration targets. |
+| **R2** | Local Storage Pool Outage or Failure | High | Low | Enforce regular schedule backups directly off-site/to NFS. |
+| **R3** | VM Corruption during patching/updates | Medium | Medium | Mandate automated pre-patching Proxmox snapshots. |
+| **R4** | Configuration Drift across system endpoints | Medium | High | Enforce version control using Git & deploy configurations via Ansible. |
+| **|R5** | Security Misconfiguration / Weak Access Controls | High | Medium | Perform structured audits utilizing an infrastructure hardening checklist. |
 
 ---
 
-# 5. Rollback Plan
+## 7. Validation Checklist
 
-## Infrastructure
+### [ ] Proxmox VE Base
+- [ ] Host completely reachable via Management IP
+- [ ] Local and shared storage structures reported as healthy
+- [ ] Backups mechanisms functioning cleanly
 
-Rollback Method:
+### [ ] Active Directory & Core Services
+- [ ] Domain controllers operational (`empire.local`)
+- [ ] Active Directory DNS mapping names properly
+- [ ] DHCP server lease scopes functional
+- [ ] Initial baseline Security GPOs successfully applied to target OUs
 
-- Restore Proxmox backup
-- Restore VM snapshots
+### [ ] Central Documentation
+- [ ] BookStack engine up and running
+- [ ] NetBox internal database active and tracks resources
 
----
+### [ ] Infrastructure Monitoring
+- [ ] Zabbix collecting server telemetry metrics
+- [ ] Grafana visualization dashboards working
+- [ ] Core notification alerting rules verified
 
-## Active Directory
+### [ ] SIEM Security
+- [ ] Wazuh dashboard operational
+- [ ] All deployed infrastructure endpoints reporting to agents
 
-Rollback Method:
-
-- Restore VM snapshot
-- Restore system state backup
-
----
-
-## Linux Servers
-
-Rollback Method:
-
-- Restore VM snapshot
-- Redeploy from template
-
----
-
-## Docker Services
-
-Rollback Method:
-
-- Restore docker volumes
-- Restore configuration backups
+### [ ] Resiliency & Backup
+- [ ] All production systems mapped to automated backups
+- [ ] Full restore test executed to verify environment integrity
 
 ---
 
-# 6. Risk Register
+## 8. Testing Plan
 
-| ID | Risk | Impact | Likelihood | Mitigation |
-|----|--------|--------|--------|--------|
-| R1 | DNS Failure | High | Medium | Backup DNS configuration |
-| R2 | Storage Failure | High | Low | Regular backups |
-| R3 | VM Corruption | Medium | Medium | Snapshots |
-| R4 | Configuration Drift | Medium | High | Documentation & Git |
-| R5 | Security Misconfiguration | High | Medium | Hardening checklist |
-
----
-
-# 7. Validation Checklist
-
-## Proxmox
-
-- [ ] Host reachable
-- [ ] Storage healthy
-- [ ] Backups functioning
-
----
-
-## Active Directory
-
-- [ ] Domain operational
-- [ ] DNS operational
-- [ ] DHCP operational
-- [ ] GPOs applied
-
----
-
-## Documentation
-
-- [ ] BookStack operational
-- [ ] NetBox operational
-
----
-
-## Monitoring
-
-- [ ] Zabbix operational
-- [ ] Grafana operational
-- [ ] Alerts operational
-
----
-
-## Security
-
-- [ ] Wazuh operational
-- [ ] Agents reporting
-
----
-
-## Backup
-
-- [ ] Backup completed
-- [ ] Restore tested
-
----
-
-# 8. Testing Plan
-
-## Functional Testing
-
+### Functional Testing
 Validate:
+* Cross-platform domain authentication mechanisms.
+* Internal DNS resolution across separate subnets.
+* DHCP Lease Assignments across distinct client scopes.
+* Centralized Monitoring telemetry collection accuracy.
+* Security event pipeline tracking via SIEM framework.
+* Regular system backup routines.
 
-- Authentication
-- DNS Resolution
-- DHCP Assignment
-- Monitoring Collection
-- Security Event Collection
-- Backup Operations
-
----
-
-## Performance Testing
-
+### Performance Testing
 Validate:
+* Server CPU Utilization thresholds under active stress.
+* RAM footprint consumption metrics.
+* IOPS and general disk storage read/write limits.
+* End-to-end network traffic processing speeds.
 
-- CPU Utilization
-- Memory Utilization
-- Disk Performance
-- Network Throughput
-
----
-
-## Recovery Testing
-
+### Recovery Testing
 Validate:
-
-- VM Restore
-- Configuration Restore
-- Backup Restore
-
----
-
-# 9. Acceptance Criteria
-
-Project is considered complete when:
-
-- All planned platforms deployed
-- Monitoring operational
-- Security operational
-- Documentation complete
-- Backup tested
-- Architecture diagrams updated
-- Runbooks completed
-- Portfolio artifacts completed
+* Total bare-metal VM restoration times.
+* Granular configuration restoration efficiency.
+* Storage backup repository failover capabilities.
 
 ---
 
-# 10. Final Deliverables
+## 9. Acceptance Criteria
+The architecture project is officially transitioned to operational state when:
+1. All planned platforms are completely deployed and validated.
+2. Infrastructure monitoring is fully live and alert triggers are functional.
+3. Security logging agent baselines are verified across all environments.
+4. Internal operational documentation, runbooks, and repositories are fully filled out.
+5. All automated backup schedules pass end-to-end restore validation testing.
+6. Master Visio/Lucidchart architecture diagrams are matched to the final state.
 
-Architecture Package
+---
 
-- Business Requirements
-- Solution Architecture
-- Network Architecture
-- Security Architecture
-- ADRs
-- BOM
-- Implementation Plan
+## 10. Final Deliverables
 
-Operational Package
+### Architectural Package
+* Business & Functional Requirements Matrix
+* Production Solution Architecture Guide
+* Deep-dive Network Engineering Blueprints
+* Infrastructure & Identity Security Architecture Blueprint
+* Architectural Decision Records (ADRs) Log
+* Finalized Project Bill of Materials (BOM)
+* Master Implementation Design Documentation
 
-- Monitoring Dashboards
-- Security Dashboards
-- Documentation Portal
-- Backup Repository
+### Operational Package
+* Real-time Monitoring & Alerts Dashboards
+* Unified Incident & SIEM Security Dashboards
+* Centralized Documentation Knowledge Base Portal
+* Hardened Infrastructure Backup Repository
 
-Portfolio Package
-
-- GitHub Repository
-- Architecture Diagrams
-- LinkedIn Content
-- Interview Talking Points
+### Portfolio & Career Package
+* Production-ready GitHub Repository containing infrastructure files
+* System Architecture Flow Diagrams
+* Professional Project Writeup & Technical Showcase Content
+* Solution Engineering Interview Technical Talking Points
