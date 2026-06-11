@@ -22,13 +22,6 @@
 | Backup            | BAK01    | Ubuntu 24.04        | 2    | 4 GB | 100 GB |
 
 ## Container Services
-## DOCS01
-| Service    |
-| ---------- |
-| BookStack  |
-| NetBox     |
-| PostgreSQL |
-| MariaDB    |
 
 ## MON01
 | Service     |
@@ -45,11 +38,13 @@
 | Wazuh Dashboard |
 | Wazuh Indexer   |
 
-## MGMT01
+## OPS01
 | Service            |
 | ------------------ |
 | Ansible            |
 | Git                |
+| NetBox             |
+| BookStack          |
 | Automation Scripts |
 
 
