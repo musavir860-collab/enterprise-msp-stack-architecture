@@ -16,8 +16,7 @@
 | VM                | Hostname | OS                  | vCPU | RAM  | Disk   |
 | ----------------- | -------- | ------------------- | ---- | ---- | ------ |
 | Domain Controller | DC01     | Windows Server 2025 | 2    | 4 GB | 80 GB  |
-| Management Server | MGMT01   | Ubuntu 24.04        | 2    | 4 GB | 50 GB  |
-| Documentation     | DOCS01   | Ubuntu 24.04        | 2    | 4 GB | 50 GB  |
+| Operations Server | OPS01    | Ubuntu 24.04        | 4    | 8 GB | 100 GB  |
 | Monitoring        | MON01    | Ubuntu 24.04        | 4    | 8 GB | 100 GB |
 | Security          | SEC01    | Ubuntu 24.04        | 4    | 8 GB | 150 GB |
 | Backup            | BAK01    | Ubuntu 24.04        | 2    | 4 GB | 100 GB |
